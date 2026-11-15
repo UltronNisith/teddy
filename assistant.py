@@ -1,5 +1,5 @@
 """
-Teddy Voice Desktop Assistant v3.1 - for Saha (Windows)
+Teddy Voice Desktop Assistant v3.2 - for Saha (Windows)
 VOICE FIX in v3.1: v3 used pyttsx3 = old Windows SAPI "Desktop" voices.
 Those are robotic by design, and if the PC has no British male SAPI voice
 installed it falls back to the female default (Zira). v3.1 changes engine:
@@ -180,6 +180,25 @@ def speak_capabilities():
     for line in CAPABILITIES: log(line)
     speak(" ".join(CAPABILITIES))
 
+# ---------- close Teddy itself ----------
+_root = None
+def shutdown_app():
+    """Fully close Teddy: stop listening, close the window, end the process."""
+    log("Closing Teddy now, Sir.")
+    try: stop_flag.set()
+    except Exception: pass
+    def _kill():
+        try:
+            if _root is not None: _root.destroy()
+        except Exception: pass
+        os._exit(0)
+    # give the goodbye message ~2.5s to be spoken before the process ends
+    threading.Timer(2.5, _kill).start()
+
+SELF_CLOSE_PHRASES = ("close teddy", "close yourself", "exit teddy", "quit teddy",
+    "stop teddy", "shut down teddy", "shutdown teddy", "bye teddy", "goodbye teddy",
+    "goodbye", "bye", "sleep", "go to sleep", "stop", "exit", "quit")
+
 # ---------- confirmation state ----------
 pending = {"action": None, "target": None}  # e.g. {"action":"close","target":"chrome"}
 YES_WORDS = {"yep", "yup", "yes", "yeah", "yeh", "sure", "confirm", "confirmed", "do it", "go ahead", "ok", "okay", "please do", "yes please"}
@@ -219,7 +238,8 @@ def handle(text):
     if pending["action"]:
         return handle_confirmation(t)
     if not t: speak("Yes, Sir? At your service."); return True
-    if t in ("stop", "sleep", "exit", "quit", "go to sleep"): speak("Very well, Sir. Going to sleep."); return False
+    if t in SELF_CLOSE_PHRASES or t.startswith("close your"):
+        speak("Goodbye, Sir. Closing now."); shutdown_app(); return False
 
     # What can you do
     if any(p in t for p in ("what can you do", "what you can do", "what do you do", "your capabilities", "help me", "show help")) or t == "help":
@@ -309,7 +329,7 @@ def listen_loop(status):
             log(f"Heard (raw): {text}")
             low = text.lower()
             # While a confirmation is pending, EVERY reply goes to the confirmation handler.
-            if pending["action"] or any(low.strip().startswith(v) for v in ("open", "search", "launch", "google", "close", "what", "volume", "mute", "lock", "shut", "restart", "take", "battery")) or any(w in low for w in WAKE_VARIANTS):
+            if pending["action"] or any(low.strip().startswith(v) for v in ("open", "search", "launch", "google", "close", "what", "volume", "mute", "lock", "shut", "restart", "take", "battery", "bye", "goodbye", "sleep", "stop", "exit", "quit")) or any(w in low for w in WAKE_VARIANTS):
                 if not handle(text): stop_flag.set(); status("Stopped"); break
             else:
                 log("Ignored (not a command). Say 'open Chrome', 'close Chrome' or 'what can you do for me'.")
@@ -322,10 +342,10 @@ def listen_loop(status):
             continue
 
 def main():
-    log("=" * 50); log("Teddy v3.1 (JARVIS-style, neural voice) starting...")
+    log("=" * 50); log("Teddy v3.2 (JARVIS-style, neural voice, self-close fixed) starting...")
     try:
         import tkinter as tk
-        root = tk.Tk(); root.title("Teddy Voice Assistant v3.1 - JARVIS style, neural voice"); root.geometry("580x430")
+        root = tk.Tk(); globals()["_root"] = root; root.title("Teddy Voice Assistant v3.2 - JARVIS style"); root.geometry("580x430")
         status_var = tk.StringVar(value="Starting...")
         tk.Label(root, text="Teddy - at your service, Sir", font=("Segoe UI", 15, "bold")).pack(pady=6)
         tk.Label(root, textvariable=status_var, font=("Segoe UI", 11), fg="#0a6").pack()
@@ -338,6 +358,7 @@ def main():
             if cmd: entry.delete(0, "end"); threading.Thread(target=handle, args=(cmd,), daemon=True).start()
         tk.Button(row, text="Test typed command", command=typed).pack(side="left", padx=4)
         entry.bind("<return>", lambda e: typed())
+        tk.Button(root, text="Close Teddy", command=lambda: (speak("Goodbye, Sir. Closing now."), shutdown_app()), fg="white", bg="#b00", font=("Segoe UI", 10, "bold")).pack(pady=4)
         tk.Label(root, text='Try typing:  what can you do for me   |   close notepad   then type:  yep', font=("Segoe UI", 8)).pack()
         threading.Thread(target=listen_loop, args=(lambda s: root.after(0, status_var.set),), daemon=True).start()
         root.protocol("WM_DELETE_WINDOW", lambda: (stop_flag.set(), root.destroy()))

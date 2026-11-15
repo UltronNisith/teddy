@@ -2,6 +2,8 @@
 
 **v3 — JARVIS-style edition:** British male butler voice (the closest built-in Windows en-GB voice — the actual movie actor's voice can't be cloned), Teddy addresses you as **"Sir"** after every task, say **"what can you do for me"** for the full spoken capability list, and **close any app with confirmation** — Teddy asks *"Are you sure, Sir?"* and only closes when you say **yep / yup / yes**. Same protection for shutdown/restart. Also new: volume, mute, screenshot, battery, lock PC.
 
+**v3.2 — close Teddy fix:** say **"close Teddy"**, "goodbye" or "sleep" and Teddy now fully closes (window + process) — in v3.1 'close Teddy' wrongly failed and 'sleep' left the window open. There's also a red **Close Teddy** button in the window and a `STOP-TEDDY.bat` that closes Teddy from outside even if the mic isn't working.
+
 **v3.1 — voice fix:** v3's voice was the old Windows SAPI engine (robotic, and female on PCs with no male SAPI voice installed). v3.1 speaks with a **neural British male voice (en-GB Ryan)** first, then Windows' natural OneCore voice via `speak.ps1`, and only then SAPI — and it logs exactly which voice it used in the window / `teddy.log`. For the best offline voice, also add the free British pack on your PC: **Settings → Time & language → Speech → Add voices → English (United Kingdom)**.
 
 Say **"Teddy"** + a command:

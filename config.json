@@ -1,7 +1,7 @@
 {
   "wake_word": "teddy",
   "use_wake_word": false,
-  "version": "3.1",
+  "version": "3.2",
   "persona": "jarvis_style_british_male",
   "address_user_as": "Sir",
   "voice_engine": "edge-tts",
