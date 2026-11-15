@@ -27,13 +27,13 @@ echo.
 echo Step 3/3: Adding Teddy to Windows Startup (starts on boot/login)...
 set STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
 set HERE=%~dp0
-powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%STARTUP%\TeddyVoiceAssistant.lnk'); $s.TargetPath='pythonw.exe'; $s.Arguments='\"%HERE%assistant.py\"'; $s.WorkingDirectory='%HERE%'; $s.Save()"
+powershell -Command "$s=(New-Object -COM WScript.Shell).CreateShortcut('%STARTUP%\TeddyVoiceAssistant.lnk'); $s.TargetPath='python.exe'; $s.Arguments='\"%HERE%assistant.py\"'; $s.WorkingDirectory='%HERE%'; $s.Save()"
 echo.
 echo DONE! Teddy will start automatically next time you log in.
 echo Starting Teddy now for a first test...
-start "" pythonw "%HERE%assistant.py"
+start "Teddy Voice Assistant" python "%HERE%assistant.py"
 echo.
 echo Say: Teddy, open Chrome
-echo To stop: say Teddy, sleep  - or end pythonw in Task Manager.
+echo To stop: say Teddy, sleep - or close the Teddy window.
 echo To remove autostart: Win+R, type shell:startup, delete TeddyVoiceAssistant.
 pause

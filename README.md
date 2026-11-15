@@ -1,5 +1,7 @@
 # Teddy — Personalized Desktop Voice Assistant
 
+**v2 — fix for 'Teddy does not respond':** now opens a visible window showing status + what Teddy heard, logs everything to `teddy.log`, accepts commands with or without the wake word, and has a typed-command test box + `DEBUG-RUN.bat` so errors are never silent.
+
 A Windows desktop app that starts on boot/login and acts on your voice.
 
 Say **"Teddy"** + a command:
