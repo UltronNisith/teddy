@@ -1,5 +1,12 @@
 """
-Teddy Voice Desktop Assistant v3 - for Saha (Windows)
+Teddy Voice Desktop Assistant v3.1 - for Saha (Windows)
+VOICE FIX in v3.1: v3 used pyttsx3 = old Windows SAPI "Desktop" voices.
+Those are robotic by design, and if the PC has no British male SAPI voice
+installed it falls back to the female default (Zira). v3.1 changes engine:
+  1st choice: edge-tts NEURAL voice en-GB-RyanNeural (natural British male,
+              free, needs internet - which voice recognition needs anyway)
+  2nd choice: Windows natural voice via speak.ps1 (WinRT, George/Ryan)
+  3rd choice: pyttsx3 SAPI, with the chosen voice LOGGED so it is visible
 JARVIS-style edition:
 - British male butler voice (Windows en-GB voice: George/Daniel if installed),
   calm and slower, formal JARVIS-style manner. NOTE: this is NOT the actual
@@ -31,38 +38,82 @@ def log(msg):
         try: globals()["_gui_log"](line)
         except Exception: pass
 
-# ---------- voice out: British male, JARVIS-style ----------
-def _pick_british_male(engine):
+# ---------- voice out v3.1: neural British male first ----------
+import queue, asyncio
+_say_q = queue.Queue()
+VOICE_NAME = "en-GB-RyanNeural"  # natural British male (neural, online)
+
+def _play_mp3(path):
+    """Play an mp3 on Windows via MCI (winmm), no extra apps needed."""
     try:
-        voices = engine.getProperty('voices')
-        # Prefer en-GB male voices, in order
-        for want in ("george", "daniel", "arthur", "ryan", "brian"):
-            for v in voices:
-                if want in v.name.lower(): return v.id
-        for v in voices:  # any British English voice
-            if "en-gb" in str(getattr(v, 'languages', '')).lower() or "british" in v.name.lower() or "united kingdom" in v.name.lower(): return v.id
-        for v in voices:  # any male-sounding English voice
-            if any(m in v.name.lower() for m in ("david", "mark", "guy", "christopher")): return v.id
-        return voices[0].id if voices else None
-    except Exception:
-        return None
+        winmm = ctypes.windll.winmm
+        winmm.mciSendStringW("close teddymp3", None, 0, 0)
+        r = winmm.mciSendStringW(f'open "{path}" type mpegvideo alias teddymp3', None, 0, 0)
+        if r != 0: raise RuntimeError(f"mci open failed {r}")
+        winmm.mciSendStringW("play teddymp3 wait", None, 0, 0)
+        winmm.mciSendStringW("close teddymp3", None, 0, 0)
+        return True
+    except Exception as ex:
+        log(f"mp3 play via MCI failed: {ex}")
+    try:  # fallback: Windows Media Player COM via PowerShell
+        ps = f"$p=New-Object -ComObject WMPlayer.OCX; $p.URL='{path}'; $p.controls.play(); Start-Sleep 1; while($p.playState -eq 3){{Start-Sleep -m 300}}"
+        subprocess.run(["powershell", "-NoProfile", "-Command", ps], timeout=60)
+        return True
+    except Exception as ex:
+        log(f"mp3 play via WMP failed: {ex}"); return False
+
+def _say_edge_tts(text):
+    import edge_tts
+    out = str(BASE / "_teddy_say.mp3")
+    async def _gen(): 
+        await edge_tts.Communicate(text, VOICE_NAME, rate="-8%", pitch="-6Hz").save(out)
+    asyncio.run(_gen())
+    return _play_mp3(out)
+
+def _say_winrt(text):
+    ps1 = BASE / "speak.ps1"
+    if not ps1.exists(): return False
+    env = dict(os.environ); env["TEDDY_SAY"] = text
+    r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ps1)],
+                       env=env, capture_output=True, text=True, timeout=60)
+    if r.stdout.strip(): log(r.stdout.strip())
+    return r.returncode == 0
+
+def _say_sapi(text):
+    import pyttsx3
+    e = pyttsx3.init()
+    voices = e.getProperty('voices')
+    log("SAPI voices available: " + ", ".join(v.name for v in voices))
+    chosen = None
+    for want in ("george", "daniel", "arthur", "ryan", "david", "mark"):
+        for v in voices:
+            if want in v.name.lower(): chosen = v; break
+        if chosen: break
+    if chosen: e.setProperty('voice', chosen.id); log(f"Using SAPI voice: {chosen.name}")
+    else: log("WARNING: no male SAPI voice found on this PC - using system default. Install the en-GB voice pack (see README) or use the neural voice.")
+    e.setProperty('rate', 162); e.say(text); e.runAndWait(); e.stop(); del e
+    return True
+
+def _speaker_worker():
+    while True:
+        text = _say_q.get()
+        if text is None: break
+        done = False
+        for name, fn in (("neural edge-tts en-GB-RyanNeural", _say_edge_tts),
+                         ("Windows natural voice (WinRT)", _say_winrt),
+                         ("SAPI fallback", _say_sapi)):
+            try:
+                if fn(text): log(f"(spoken via {name})"); done = True; break
+            except Exception as ex:
+                log(f"Voice engine '{name}' failed: {ex}")
+        if not done: log(f"All voice engines failed. Text was: {text}")
+        _say_q.task_done()
+
+threading.Thread(target=_speaker_worker, daemon=True).start()
 
 def speak(text):
     log(f"TEDDY SAYS: {text}")
-    def _say():
-        try:
-            import pyttsx3
-            e = pyttsx3.init()
-            vid = _pick_british_male(e)
-            if vid: e.setProperty('voice', vid)
-            e.setProperty('rate', 162)   # slower, calmer, JARVIS-like pace
-            e.setProperty('volume', 1.0)
-            try: e.setProperty('pitch', 85)  # ignored on some drivers, harmless
-            except Exception: pass
-            e.say(text); e.runAndWait(); e.stop(); del e
-        except Exception as ex:
-            log(f"Voice-out failed ({ex}). Text was: {text}")
-    threading.Thread(target=_say, daemon=True).start()
+    _say_q.put(text)
 
 # ---------- apps: open targets + Windows process names for closing ----------
 APPS = {
@@ -271,10 +322,10 @@ def listen_loop(status):
             continue
 
 def main():
-    log("=" * 50); log("Teddy v3 (JARVIS-style) starting...")
+    log("=" * 50); log("Teddy v3.1 (JARVIS-style, neural voice) starting...")
     try:
         import tkinter as tk
-        root = tk.Tk(); root.title("Teddy Voice Assistant v3 - JARVIS style"); root.geometry("580x430")
+        root = tk.Tk(); root.title("Teddy Voice Assistant v3.1 - JARVIS style, neural voice"); root.geometry("580x430")
         status_var = tk.StringVar(value="Starting...")
         tk.Label(root, text="Teddy - at your service, Sir", font=("Segoe UI", 15, "bold")).pack(pady=6)
         tk.Label(root, textvariable=status_var, font=("Segoe UI", 11), fg="#0a6").pack()

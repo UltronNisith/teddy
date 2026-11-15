@@ -16,7 +16,7 @@ python --version
 echo.
 echo Step 2/3: Installing voice libraries (needs internet, 1-2 minutes)...
 python -m pip install --upgrade pip
-python -m pip install SpeechRecognition pyttsx3
+python -m pip install SpeechRecognition pyttsx3 edge-tts
 python -m pip install pyaudio
 if errorlevel 1 (
   echo PyAudio failed, trying alternative wheel...
