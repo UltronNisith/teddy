@@ -1,5 +1,5 @@
 """
-Teddy Voice Desktop Assistant v3.2 - for Saha (Windows)
+Teddy Voice Desktop Assistant v3.3 - for Saha (Windows)
 VOICE FIX in v3.1: v3 used pyttsx3 = old Windows SAPI "Desktop" voices.
 Those are robotic by design, and if the PC has no British male SAPI voice
 installed it falls back to the female default (Zira). v3.1 changes engine:
@@ -180,6 +180,23 @@ def speak_capabilities():
     for line in CAPABILITIES: log(line)
     speak(" ".join(CAPABILITIES))
 
+# ---------- wake word: "Teddy" gets an answer ----------
+import time as _time
+wake_state = {"awaiting_until": 0.0}
+ACKS = ["Yes, Sir?", "At your service, Sir.", "Listening, Sir.", "Yes, Sir. How may I assist?"]
+_ack_i = [0]
+def beep():
+    try:
+        import winsound; winsound.Beep(880, 130); winsound.Beep(1320, 90)
+    except Exception: pass
+def wake_ack():
+    beep()  # instant sound first, so you KNOW Teddy heard you, even before the voice speaks
+    ack = ACKS[_ack_i[0] % len(ACKS)]; _ack_i[0] += 1
+    log(f"WAKE WORD heard -> responding: {ack}")
+    speak(ack)
+    wake_state["awaiting_until"] = _time.time() + 25  # next 25s: your next sentence is the command, no wake word needed
+    return "wake"
+
 # ---------- close Teddy itself ----------
 _root = None
 def shutdown_app():
@@ -237,7 +254,7 @@ def handle(text):
     # If Teddy is waiting for a yes/no, THIS reply is the confirmation.
     if pending["action"]:
         return handle_confirmation(t)
-    if not t: speak("Yes, Sir? At your service."); return True
+    if not t: return wake_ack()
     if t in SELF_CLOSE_PHRASES or t.startswith("close your"):
         speak("Goodbye, Sir. Closing now."); shutdown_app(); return False
 
@@ -329,8 +346,14 @@ def listen_loop(status):
             log(f"Heard (raw): {text}")
             low = text.lower()
             # While a confirmation is pending, EVERY reply goes to the confirmation handler.
-            if pending["action"] or any(low.strip().startswith(v) for v in ("open", "search", "launch", "google", "close", "what", "volume", "mute", "lock", "shut", "restart", "take", "battery", "bye", "goodbye", "sleep", "stop", "exit", "quit")) or any(w in low for w in WAKE_VARIANTS):
-                if not handle(text): stop_flag.set(); status("Stopped"); break
+            awaiting = _time.time() < wake_state["awaiting_until"]
+            if awaiting: log("Follow-up command window is OPEN (from wake word)")
+            if awaiting or pending["action"] or any(low.strip().startswith(v) for v in ("open", "search", "launch", "google", "close", "what", "volume", "mute", "lock", "shut", "restart", "take", "battery", "bye", "goodbye", "sleep", "stop", "exit", "quit")) or any(w in low for w in WAKE_VARIANTS):
+                result = handle(text)
+                if result == "wake":
+                    status("Teddy heard you, Sir - say your command now")
+                elif not result: stop_flag.set(); status("Stopped"); break
+                elif awaiting and result: wake_state["awaiting_until"] = 0.0  # command done, back to passive listening
             else:
                 log("Ignored (not a command). Say 'open Chrome', 'close Chrome' or 'what can you do for me'.")
         except Exception as ex:
@@ -342,10 +365,10 @@ def listen_loop(status):
             continue
 
 def main():
-    log("=" * 50); log("Teddy v3.2 (JARVIS-style, neural voice, self-close fixed) starting...")
+    log("=" * 50); log("Teddy v3.3 (wake-word response) starting...")
     try:
         import tkinter as tk
-        root = tk.Tk(); globals()["_root"] = root; root.title("Teddy Voice Assistant v3.2 - JARVIS style"); root.geometry("580x430")
+        root = tk.Tk(); globals()["_root"] = root; root.title("Teddy Voice Assistant v3.3 - JARVIS style"); root.geometry("580x430")
         status_var = tk.StringVar(value="Starting...")
         tk.Label(root, text="Teddy - at your service, Sir", font=("Segoe UI", 15, "bold")).pack(pady=6)
         tk.Label(root, textvariable=status_var, font=("Segoe UI", 11), fg="#0a6").pack()
