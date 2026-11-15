@@ -1,5 +1,7 @@
 {
   "wake_word": "teddy",
   "use_wake_word": false,
-  "version": "2.0"
+  "version": "3.0",
+  "persona": "jarvis_style_british_male",
+  "address_user_as": "Sir"
 }

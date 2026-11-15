@@ -1,8 +1,6 @@
 # Teddy — Personalized Desktop Voice Assistant
 
-**v2 — fix for 'Teddy does not respond':** now opens a visible window showing status + what Teddy heard, logs everything to `teddy.log`, accepts commands with or without the wake word, and has a typed-command test box + `DEBUG-RUN.bat` so errors are never silent.
-
-A Windows desktop app that starts on boot/login and acts on your voice.
+**v3 — JARVIS-style edition:** British male butler voice (the closest built-in Windows en-GB voice — the actual movie actor's voice can't be cloned), Teddy addresses you as **"Sir"** after every task, say **"what can you do for me"** for the full spoken capability list, and **close any app with confirmation** — Teddy asks *"Are you sure, Sir?"* and only closes when you say **yep / yup / yes**. Same protection for shutdown/restart. Also new: volume, mute, screenshot, battery, lock PC.
 
 Say **"Teddy"** + a command:
 
